@@ -9,35 +9,80 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = DarkLavender,
+    onPrimary = Color.White,
+    primaryContainer = DarkPurple40,
+    onPrimaryContainer = DarkTextPrimary,
+
+    secondary = DarkBlue,
+    onSecondary = Color.White,
+    secondaryContainer = DarkPurpleGrey40,
+    onSecondaryContainer = DarkTextPrimary,
+
+    tertiary = DarkPink,
+    onTertiary = Color.White,
+    tertiaryContainer = DarkPink40,
+    onTertiaryContainer = DarkTextPrimary,
+
+    background = DarkBackground,
+    onBackground = DarkTextPrimary,
+
+    surface = DarkCardBackground,
+    onSurface = DarkTextPrimary,
+    surfaceVariant = DarkSurfaceColor,
+    onSurfaceVariant = DarkTextSecondary,
+
+    error = Color(0xFFCF6679),
+    onError = Color.Black,
+
+    outline = Color(0xFF4A4A4A),
+    outlineVariant = Color(0xFF2A2A2A),
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+    primary = Lavender,
+    onPrimary = TextPrimary,
+    primaryContainer = Purple80,
+    onPrimaryContainer = TextPrimary,
 
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    secondary = LightBlue,
+    onSecondary = TextPrimary,
+    secondaryContainer = Color(0xFFE3F2FD),
+    onSecondaryContainer = TextPrimary,
+
+    tertiary = SoftPink,
+    onTertiary = TextPrimary,
+    tertiaryContainer = Pink80,
+    onTertiaryContainer = TextPrimary,
+
+    background = LightBackground,
+    onBackground = TextPrimary,
+
+    surface = CardBackground,
+    onSurface = TextPrimary,
+    surfaceVariant = SurfaceColor,
+    onSurfaceVariant = TextSecondary,
+
+    error = Color(0xFFB00020),
+    onError = Color.White,
+
+    outline = Color(0xFFCACACA),
+    outlineVariant = Color(0xFFE0E0E0),
 )
 
 @Composable
-fun Startup_hackathon20Theme(
+fun MindMirrorTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -48,6 +93,15 @@ fun Startup_hackathon20Theme(
 
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
+    }
+
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+            window.statusBarColor = colorScheme.primary.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+        }
     }
 
     MaterialTheme(

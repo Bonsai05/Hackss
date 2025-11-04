@@ -4,285 +4,159 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.runanywhere.startup_hackathon20.ui.theme.Startup_hackathon20Theme
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.runanywhere.startup_hackathon20.data.UserPreferences
+import com.runanywhere.startup_hackathon20.notifications.NotificationHelper
+import com.runanywhere.startup_hackathon20.ui.components.BottomNavBar
+import com.runanywhere.startup_hackathon20.ui.components.ToastHost
+import com.runanywhere.startup_hackathon20.ui.components.rememberToastState
+import com.runanywhere.startup_hackathon20.ui.screens.AddEntryScreen
+import com.runanywhere.startup_hackathon20.ui.screens.HomeScreen
+import com.runanywhere.startup_hackathon20.ui.screens.MoodStatsScreen
+import com.runanywhere.startup_hackathon20.ui.screens.SettingsScreen
+import com.runanywhere.startup_hackathon20.ui.screens.SplashScreen
+import com.runanywhere.startup_hackathon20.ui.theme.MindMirrorTheme
+import com.runanywhere.startup_hackathon20.viewmodel.JournalViewModel
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Setup notifications
+        NotificationHelper.createNotificationChannel(this)
+        NotificationHelper.scheduleDailyNotification(this, hour = 20, minute = 0) // 8 PM daily
+
         enableEdgeToEdge()
         setContent {
-            Startup_hackathon20Theme {
-                ChatScreen()
-            }
+            MindMirrorApp()
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatScreen(viewModel: ChatViewModel = viewModel()) {
-    val messages by viewModel.messages.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val availableModels by viewModel.availableModels.collectAsState()
-    val downloadProgress by viewModel.downloadProgress.collectAsState()
-    val currentModelId by viewModel.currentModelId.collectAsState()
-    val statusMessage by viewModel.statusMessage.collectAsState()
+fun MindMirrorApp() {
+    val context = LocalContext.current
+    val userPreferences = UserPreferences(context)
+    val isDarkMode by userPreferences.darkModeFlow.collectAsState(initial = false)
+    val coroutineScope = rememberCoroutineScope()
 
-    var inputText by remember { mutableStateOf("") }
-    var showModelSelector by remember { mutableStateOf(false) }
+    var showSplash by remember { mutableStateOf(true) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("AI Chat") },
-                actions = {
-                    TextButton(onClick = { showModelSelector = !showModelSelector }) {
-                        Text("Models")
+    MindMirrorTheme(darkTheme = isDarkMode) {
+        if (showSplash) {
+            SplashScreen(onTimeout = { showSplash = false })
+        } else {
+            MainContent(
+                isDarkMode = isDarkMode,
+                onToggleDarkMode = {
+                    coroutineScope.launch {
+                        userPreferences.toggleDarkMode()
                     }
                 }
             )
         }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            // Status bar
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                tonalElevation = 2.dp
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text(
-                        text = statusMessage,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    downloadProgress?.let { progress ->
-                        LinearProgressIndicator(
-                            progress = { progress },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 8.dp)
-                        )
-                    }
-                }
-            }
-
-            // Model selector (collapsible)
-            if (showModelSelector) {
-                ModelSelector(
-                    models = availableModels,
-                    currentModelId = currentModelId,
-                    onDownload = { modelId -> viewModel.downloadModel(modelId) },
-                    onLoad = { modelId -> viewModel.loadModel(modelId) },
-                    onRefresh = { viewModel.refreshModels() }
-                )
-            }
-
-            // Messages List
-            val listState = rememberLazyListState()
-
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(messages) { message ->
-                    MessageBubble(message)
-                }
-            }
-
-            // Auto-scroll to bottom when new messages arrive
-            LaunchedEffect(messages.size) {
-                if (messages.isNotEmpty()) {
-                    listState.animateScrollToItem(messages.size - 1)
-                }
-            }
-
-            // Input Field
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                TextField(
-                    value = inputText,
-                    onValueChange = { inputText = it },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text("Type a message...") },
-                    enabled = !isLoading && currentModelId != null
-                )
-
-                Button(
-                    onClick = {
-                        if (inputText.isNotBlank()) {
-                            viewModel.sendMessage(inputText)
-                            inputText = ""
-                        }
-                    },
-                    enabled = !isLoading && inputText.isNotBlank() && currentModelId != null
-                ) {
-                    Text("Send")
-                }
-            }
-        }
     }
 }
 
 @Composable
-fun MessageBubble(message: ChatMessage) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (message.isUser)
-                MaterialTheme.colorScheme.primaryContainer
-            else
-                MaterialTheme.colorScheme.secondaryContainer
-        )
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = if (message.isUser) "You" else "AI",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = message.text,
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-    }
-}
-
-@Composable
-fun ModelSelector(
-    models: List<com.runanywhere.sdk.models.ModelInfo>,
-    currentModelId: String?,
-    onDownload: (String) -> Unit,
-    onLoad: (String) -> Unit,
-    onRefresh: () -> Unit
+fun MainContent(
+    isDarkMode: Boolean,
+    onToggleDarkMode: () -> Unit
 ) {
+    val toastState = rememberToastState()
+
     Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 4.dp
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "Available Models",
-                    style = MaterialTheme.typography.titleMedium
-                )
-                TextButton(onClick = onRefresh) {
-                    Text("Refresh")
+        Box(modifier = Modifier.fillMaxSize()) {
+            val navController = rememberNavController()
+            val viewModel: JournalViewModel = viewModel()
+
+            val entries by viewModel.entries.collectAsState()
+            val detectedEmotion by viewModel.detectedEmotion.collectAsState()
+            val affirmation by viewModel.affirmation.collectAsState()
+            val isProcessing by viewModel.isProcessing.collectAsState()
+
+            Scaffold(
+                bottomBar = {
+                    BottomNavBar(navController = navController)
                 }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            if (models.isEmpty()) {
-                Text(
-                    text = "No models available. Initializing...",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.heightIn(max = 300.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) { paddingValues ->
+                NavHost(
+                    navController = navController,
+                    startDestination = "home",
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
                 ) {
-                    items(models) { model ->
-                        ModelItem(
-                            model = model,
-                            isLoaded = model.id == currentModelId,
-                            onDownload = { onDownload(model.id) },
-                            onLoad = { onLoad(model.id) }
+                    composable("home") {
+                        HomeScreen(
+                            entries = entries,
+                            onAddEntryClick = {
+                                viewModel.resetEmotion()
+                                navController.navigate("add_entry")
+                            },
+                            onDeleteEntry = { entryId ->
+                                viewModel.deleteEntry(entryId)
+                                toastState.showToast("Entry deleted")
+                            },
+                            onSettingsClick = {
+                                navController.navigate("settings")
+                            }
+                        )
+                    }
+
+                    composable("add_entry") {
+                        AddEntryScreen(
+                            onNavigateBack = {
+                                navController.popBackStack()
+                            },
+                            onAnalyzeEmotion = { text ->
+                                viewModel.analyzeEmotion(text)
+                            },
+                            onSaveEntry = { text, emotion ->
+                                viewModel.saveEntry(text, emotion)
+                                toastState.showToast("✨ Journal entry saved!")
+                                // Navigation is handled by AddEntryScreen
+                            },
+                            detectedEmotion = detectedEmotion,
+                            affirmation = affirmation,
+                            isProcessing = isProcessing
+                        )
+                    }
+
+                    composable("mood_stats") {
+                        MoodStatsScreen(entries = entries)
+                    }
+
+                    composable("settings") {
+                        SettingsScreen(
+                            isDarkMode = isDarkMode,
+                            onNavigateBack = {
+                                navController.popBackStack()
+                            },
+                            onToggleDarkMode = onToggleDarkMode
                         )
                     }
                 }
             }
+
+            // Toast overlay
+            ToastHost(toastState = toastState)
         }
-    }
-}
-
-@Composable
-fun ModelItem(
-    model: com.runanywhere.sdk.models.ModelInfo,
-    isLoaded: Boolean,
-    onDownload: () -> Unit,
-    onLoad: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isLoaded)
-                MaterialTheme.colorScheme.tertiaryContainer
-            else
-                MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = model.name,
-                style = MaterialTheme.typography.titleSmall
-            )
-
-            if (isLoaded) {
-                Text(
-                    text = "✓ Currently Loaded",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            } else {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = onDownload,
-                        modifier = Modifier.weight(1f),
-                        enabled = !model.isDownloaded
-                    ) {
-                        Text(if (model.isDownloaded) "Downloaded" else "Download")
-                    }
-
-                    Button(
-                        onClick = onLoad,
-                        modifier = Modifier.weight(1f),
-                        enabled = model.isDownloaded
-                    ) {
-                        Text("Load")
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun DefaultPreview() {
-    Startup_hackathon20Theme {
-        ChatScreen()
     }
 }

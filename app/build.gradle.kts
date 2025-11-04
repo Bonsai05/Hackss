@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("com.google.devtools.ksp") version "2.0.21-1.0.28"
 }
 
 android {
@@ -77,9 +78,13 @@ dependencies {
     // AndroidX WorkManager (required by SDK)
     implementation("androidx.work:work-runtime-ktx:2.10.0")
 
-    // AndroidX Room (required by SDK)
+    // AndroidX Room (required by SDK AND for our app)
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
+    ksp("androidx.room:room-compiler:2.6.1")
+
+    // DataStore Preferences for settings
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     // AndroidX Security (required by SDK)
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
@@ -94,6 +99,9 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
+    implementation("androidx.compose.material:material-icons-extended:1.7.6")
+    implementation("androidx.navigation:navigation-compose:2.8.5")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
